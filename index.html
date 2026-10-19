@@ -28,7 +28,9 @@
       <h1>注音文翻譯器
         <span class="help">
           <button type="button" id="helpBtn" aria-label="使用說明與限制" aria-describedby="tip">?</button>
+          <span class="tip-backdrop" id="tipBackdrop" aria-hidden="true"></span>
           <div class="tip" id="tip" role="tooltip">
+            <button type="button" class="tip-close" id="tipClose" aria-label="關閉說明">×</button>
             <h3>怎麼用</h3>
             <ul>
               <li>左邊貼上注音文（例如 <code>e04</code>、<code>su3cl3</code>），右邊即時翻成中文。</li>
@@ -61,8 +63,8 @@
             <ul>
               <li>目前支援大千、倚天、倉頡、無蝦米；許氏、IBM、倚天 26 鍵、速成、大易、行列還沒做。</li>
               <li>大千的 <code>, . / ; -</code> 和 <code>1 2 5 8 9 0</code> 本身就是注音鍵，夾在注音文裡的半形標點、數字可能被當成注音。建議標點用全形。</li>
-              <li>「單位詞之前，純數字不轉換」（預設開）：一串數字如果後面接單位（元、個、次、%、kg…）、前面是 $、第、約、共、剩，或比一個字的長度還長（像 1040），就當成數字原樣保留；其他照注音翻，例如單獨的 104 還是會變成ㄅㄢˋ。</li>
-              <li>「沒打聲調時當一聲」：漏打聲調時，前面那幾個符號會被拆出來當一聲，例如 <code>e0su3</code> 會變成ㄍㄢ＋ㄋㄧˇ；標點前沒打聲調的也一樣。最後一個還沒打聲調的字會先留在組字區，開始打下一個字時才補一聲。被補一聲的字在組字區是紅色虛線框，翻成注音時會多一個 ˉ（例如 ㄍㄢˉ）。開啟後英文單字也更容易被拆成注音，平常建議關著。</li>
+              <li>「單位詞之前，純數字不轉換」（預設關）：一串數字如果後面接單位（元、個、次、%、kg…）、前面是 $、第、約、共、剩，或比一個字的長度還長（像 1040），就當成數字原樣保留；其他照注音翻，例如單獨的 104 還是會變成ㄅㄢˋ。</li>
+              <li>「漏打聲調也能辨識」：漏打聲調時，前面那幾個符號會被拆出來當一聲，例如 <code>e0su3</code> 會變成ㄍㄢ＋ㄋㄧˇ；標點前沒打聲調的也一樣。最後一個還沒打聲調的字會先留在組字區，開始打下一個字時才補一聲。被補一聲的字在組字區是紅色虛線框，翻成注音時會多一個 ˉ（例如 ㄍㄢˉ）。開啟後英文單字也更容易被拆成注音，平常建議關著。</li>
               <li>英文單字剛好拼成合法注音加聲調時會被翻掉。</li>
               <li>注音選字是詞頻統計結果，不一定是原意，歧義時請點字手動改。字形輸入法的同碼字依字碼表順序。</li>
               <li>詞庫取自新酷音 libchewing-data（LGPL-2.1），已省略極罕用詞組；倉頡、無蝦米字碼表取自 cin-tables。全部在瀏覽器內運算，不上傳任何文字。</li>
@@ -129,8 +131,8 @@
       <div class="opts" role="group" aria-label="翻譯設定">
         <label data-for="zy"><input type="checkbox" id="optReorder" checked> 自動校正注音順序（ㄛㄨ → ㄨㄛ）</label>
         <label data-for="zy"><input type="checkbox" id="optSmart" checked> 智慧選字（依詞組）</label>
-        <label data-for="zy"><input type="checkbox" id="optDigits" checked> 單位詞之前，純數字不轉換</label>
-        <label data-for="zy"><input type="checkbox" id="optEnd"> 沒打聲調時當一聲</label>
+        <label data-for="zy"><input type="checkbox" id="optDigits"> 單位詞之前，純數字不轉換</label>
+        <label data-for="zy"><input type="checkbox" id="optEnd"> 漏打聲調也能辨識</label>
         <label data-for="shape"><input type="checkbox" id="optSplit"> 連打沒空白也斷字</label>
       </div>
     </div>

@@ -41,13 +41,24 @@ h1{margin:0;font:700 26px/1.2 var(--f-han);letter-spacing:.02em;text-wrap:balanc
 
 .help{position:relative;display:inline-flex}
 .help>button{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--muted);background:transparent;color:var(--muted);font:700 14px var(--f-mono);cursor:help;display:grid;place-items:center;padding:0}
-.help:hover>button,.help:focus-within>button{border-color:var(--legend);color:var(--legend)}
-.tip{position:absolute;top:calc(100% + 10px);left:-12px;width:min(460px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:14px 16px;font:400 13.5px/1.65 var(--f-ui);color:var(--ink);z-index:50;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility .15s;max-height:70vh;overflow:auto}
-.help:hover .tip,.help:focus-within .tip{opacity:1;visibility:visible;transform:none}
+.help.hovering>button,.help.kbd>button,.help.open>button{border-color:var(--legend);color:var(--legend)}
+.tip{position:absolute;top:calc(100% + 10px);left:-12px;width:min(460px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:14px 16px;font:400 13.5px/1.65 var(--f-ui);text-wrap:wrap;color:var(--ink);z-index:50;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility .15s;max-height:70vh;overflow:auto}
+/* 滑鼠滑過（.hovering）或鍵盤 Tab 到「?」（.kbd）時顯示；由 js 依實際使用的輸入方式加上 class */
+.help.hovering .tip,.help.kbd .tip{opacity:1;visibility:visible;transform:none}
 .tip h3{margin:10px 0 4px;font-size:13px;letter-spacing:.06em;color:var(--legend)}
-.tip h3:first-child{margin-top:0}
+.tip h3:first-of-type{margin-top:0}
 .tip ul{margin:0;padding-left:18px}
 .tip li{margin:2px 0}
+.tip-close{display:none}
+/* 燈箱：用手指（或觸控筆）點「?」時，js 加上 .open。不用 @media 判斷裝置：有觸控螢幕的筆電，瀏覽器會回報「沒有滑鼠」 */
+.help.open .tip{position:fixed;left:50%;top:50%;width:min(560px,calc(100vw - 32px));max-height:80vh;margin-left:0!important;transform:translate(-50%,-50%);z-index:61;font-size:14.5px;opacity:1;visibility:visible;transition:opacity .15s}
+/* 燈箱只淡入淡出、不移動：關的時候先在原位淡出（.closing），完全透明後 js 才拿掉 .open，換回一般提示框的位置 */
+.help.open.closing .tip,.help.open.closing .tip-backdrop{opacity:0;visibility:hidden;transition:opacity .15s,visibility .15s}
+.help.open .tip h3:first-of-type{padding-right:40px}
+.tip-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;opacity:0;visibility:hidden;transition:opacity .15s,visibility .15s}
+.help.open .tip-backdrop{opacity:1;visibility:visible}
+.help.open .tip-close{display:grid;place-items:center;position:absolute;top:8px;right:8px;width:34px;height:34px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:400 22px/1 var(--f-ui);cursor:pointer}
+html.tip-open{overflow:hidden}
 .tip code{font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:0 4px;border-radius:4px}
 
 /* tabs */
@@ -136,6 +147,7 @@ textarea.han{font:400 22px/1.6 var(--f-han)}
 .panel{border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
 .panel-h{font-size:13px;color:var(--muted)}
 .panel-h strong{color:var(--legend);font-weight:500}
+.panel-acts{display:flex;gap:8px;flex-wrap:wrap}
 #toneHint .panel-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .cands{display:flex;flex-wrap:wrap;gap:6px;max-height:190px;overflow:auto}
 .cand{border:1px solid var(--line);background:var(--cap);border-radius:7px;padding:2px 9px;cursor:pointer;font:400 20px/1.5 var(--f-han);display:inline-flex;align-items:baseline;gap:6px}

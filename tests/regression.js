@@ -52,7 +52,100 @@ const SCENARIOS = {
   '注音符號': async p => { await typeInto(p, '#src', 'ㄍㄢˋ'); return pick(await state(p), ['out', 'lbl']); },
   '倉頡字根': async p => { await typeInto(p, '#src', '十十人一十 人弓火'); return pick(await state(p), ['out', 'lbl']); },
   '貼中文自動對調': async p => { await typeInto(p, '#src', '你今天吃飯了嗎'); return pick(await state(p), ['mode', 'out', 'lbl']); },
-  '數字加單位不轉': async p => { await typeInto(p, '#src', 'e04 104元'); return pick(await state(p), ['out']); },
+  '數字選項預設關': async p => {
+    const checked = await p.isChecked('#optDigits');
+    await typeInto(p, '#src', 'e04 104元');
+    return { checked, ...pick(await state(p), ['out']) };
+  },
+  '數字加單位不轉（勾選後）': async p => {
+    await p.click('#src'); await p.check('#optDigits');
+    await typeInto(p, '#src', 'e04 104元'); return pick(await state(p), ['out']);
+  },
+  '候選字面板：選字後還能關、點外面或 Esc 收起': async p => {
+    const shown = () => p.evaluate(() => !document.getElementById('candPanel').hidden);
+    await typeInto(p, '#src', 'su3cl3');
+    await p.click('.chip[data-idx="0"]'); const open = await shown();
+    await p.click('#candPanel .cand[aria-current="false"]');
+    const afterPick = { shown: await shown(), close: await p.isVisible('#closeCand'), unlock: await p.isVisible('#unlock') };
+    await p.click('#closeCand'); const afterCloseBtn = await shown();
+    await p.click('.chip[data-idx="0"]'); await p.click('#kbTitle'); const afterOutside = await shown();
+    await p.click('.chip[data-idx="0"]'); await p.keyboard.press('Escape'); const afterEsc = await shown();
+    return { open, afterPick, afterCloseBtn, afterOutside, afterEsc };
+  },
+  '產生器面板：選完還能關、點外面收起': async p => {
+    const shown = () => p.evaluate(() => !document.getElementById('gCandPanel').hidden);
+    await p.click('#swap'); await p.click('#clearG'); await p.type('#gsrc', '行', { delay: 20 }); await p.waitForTimeout(WAIT);
+    await p.click('#gchips .chip[data-pos]'); const open = await shown();
+    await p.click('#gCandPanel .cand[aria-current="false"]');
+    const afterPick = { shown: await shown(), close: await p.isVisible('#gclose'), unlock: await p.isVisible('#gunlock') };
+    await p.click('#kbTitle'); const afterOutside = await shown();
+    return { open, afterPick, afterOutside };
+  },
+  '手機：說明是燈箱、不撐寬頁面': {
+    page: { viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true },
+    run: async p => {
+      const vis = () => p.evaluate(() => getComputedStyle(document.getElementById('tip')).visibility);
+      const before = await vis();
+      await p.tap('#helpBtn'); await p.waitForTimeout(300);
+      const geo = await p.evaluate(() => { const r = document.getElementById('tip').getBoundingClientRect();
+        return { inView: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight,
+                 pageWidth: Math.max(innerWidth, document.documentElement.scrollWidth) }; });   // 被撐寬時會大於 390
+      const opened = await vis();
+      await p.tap('#tipClose'); await p.waitForTimeout(300); const afterX = await vis();
+      await p.tap('#helpBtn'); await p.waitForTimeout(300);
+      await p.touchscreen.tap(195, 20); await p.waitForTimeout(300); const afterBackdrop = await vis();
+      return { before, opened, ...geo, afterX, afterBackdrop };
+    },
+  },
+  '手機：燈箱打開、關閉時只淡入淡出，位置不跳': {
+    page: { viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true },
+    run: async p => {
+      // 每一格（約 16ms）記錄說明框的位置；看得到的那幾格，位置必須都一樣（截圖抓不到這一瞬間）
+      const record = () => p.evaluate(() => { window.__f = []; const t = document.getElementById('tip'), t0 = performance.now();
+        (function rec() { const r = t.getBoundingClientRect(), cs = getComputedStyle(t);
+          if (cs.visibility === 'visible' && +cs.opacity > 0.02) window.__f.push(Math.round(r.left) + ',' + Math.round(r.top));
+          if (performance.now() - t0 < 400) requestAnimationFrame(rec); })(); });
+      const moved = () => p.evaluate(() => new Set(window.__f).size > 1);
+      await record(); await p.tap('#helpBtn'); await p.waitForTimeout(500); const openMoves = await moved();
+      await record(); await p.tap('#tipClose'); await p.waitForTimeout(500); const closeMoves = await moved();
+      return { openMoves, closeMoves };
+    },
+  },
+  '電腦窄視窗：說明仍是滑過顯示、不撐寬頁面': {
+    page: { viewport: { width: 700, height: 700 } },
+    run: async p => {
+      const width = () => p.evaluate(() => Math.max(innerWidth, document.documentElement.scrollWidth));
+      const before = await width();
+      await p.hover('#helpBtn'); await p.waitForTimeout(300);
+      return { before, ...(await p.evaluate(() => { const t = document.getElementById('tip'), r = t.getBoundingClientRect();
+        return { hover: getComputedStyle(t).visibility, inView: r.left >= 0 && r.right <= innerWidth }; })), after: await width() };
+    },
+  },
+  '觸控筆電（瀏覽器說沒有滑鼠）：滑鼠滑過是提示框、手指點才是燈箱': {
+    page: { viewport: { width: 1054, height: 831 }, hasTouch: true },
+    run: async p => {
+      const st = () => p.evaluate(() => { const t = document.getElementById('tip');
+        return { visible: getComputedStyle(t).visibility, lightbox: document.querySelector('.help').classList.contains('open') }; });
+      const reportsNoMouse = await p.evaluate(() => matchMedia('(hover:none)').matches && matchMedia('(pointer:coarse)').matches);
+      await p.hover('#helpBtn'); await p.waitForTimeout(300); const mouseHover = await st();
+      await p.mouse.move(5, 650); await p.waitForTimeout(300);
+      await p.tap('#helpBtn'); await p.waitForTimeout(300); const fingerTap = await st();
+      return { reportsNoMouse, mouseHover, fingerTap };
+    },
+  },
+  '電腦：鍵盤 Tab 到「?」會顯示說明，Esc 收起': async p => {
+    const vis = () => p.evaluate(() => getComputedStyle(document.getElementById('tip')).visibility);
+    for (let i = 0; i < 6 && !(await p.evaluate(() => document.activeElement.id === 'helpBtn')); i++) await p.keyboard.press('Tab');
+    await p.waitForTimeout(300); const tabbed = await vis();
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300); const afterEsc = await vis();
+    await p.hover('#helpBtn'); await p.waitForTimeout(300); const hover = await vis();
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300); const hoverEsc = await vis();
+    return { tabbed, afterEsc, hover, hoverEsc };
+  },
+  '桌機：說明維持滑過就顯示': async p => {
+    await p.hover('#helpBtn'); await p.waitForTimeout(300);
+    return { hover: await p.evaluate(() => getComputedStyle(document.getElementById('tip')).visibility) };
+  },
   '亂打': async p => { await typeInto(p, '#src', 'qqqqqqqq'); return pick(await state(p), ['lbl']); },
   '清空回自動偵測': async p => {
     await typeInto(p, '#src', 'jjomj ');
@@ -107,8 +200,70 @@ const EXPECTED = {
     "out": "su3rup wu0 t z04xk7a87",
     "lbl": "偵測到·中文"
   },
-  "數字加單位不轉": {
+  "數字選項預設關": {
+    "checked": false,
+    "out": "幹 辦元"
+  },
+  "數字加單位不轉（勾選後）": {
     "out": "幹 104元"
+  },
+  "候選字面板：選字後還能關、點外面或 Esc 收起": {
+    "open": true,
+    "afterPick": {
+      "shown": true,
+      "close": true,
+      "unlock": true
+    },
+    "afterCloseBtn": false,
+    "afterOutside": false,
+    "afterEsc": false
+  },
+  "產生器面板：選完還能關、點外面收起": {
+    "open": true,
+    "afterPick": {
+      "shown": true,
+      "close": true,
+      "unlock": true
+    },
+    "afterOutside": false
+  },
+  "手機：說明是燈箱、不撐寬頁面": {
+    "before": "hidden",
+    "opened": "visible",
+    "inView": true,
+    "pageWidth": 390,
+    "afterX": "hidden",
+    "afterBackdrop": "hidden"
+  },
+  "手機：燈箱打開、關閉時只淡入淡出，位置不跳": {
+    "openMoves": false,
+    "closeMoves": false
+  },
+  "電腦窄視窗：說明仍是滑過顯示、不撐寬頁面": {
+    "before": 700,
+    "hover": "visible",
+    "inView": true,
+    "after": 700
+  },
+  "觸控筆電（瀏覽器說沒有滑鼠）：滑鼠滑過是提示框、手指點才是燈箱": {
+    "reportsNoMouse": true,
+    "mouseHover": {
+      "visible": "visible",
+      "lightbox": false
+    },
+    "fingerTap": {
+      "visible": "visible",
+      "lightbox": true
+    }
+  },
+  "電腦：鍵盤 Tab 到「?」會顯示說明，Esc 收起": {
+    "tabbed": "visible",
+    "afterEsc": "hidden",
+    "hover": "visible",
+    "hoverEsc": "hidden"
+  },
+  "桌機：說明維持滑過就顯示": {
+    "hover": "visible"
   },
   "亂打": {
     "lbl": "無法辨識"
@@ -133,8 +288,11 @@ const EXPECTED = {
 (async () => {
   const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   const actual = {}, errors = [];
-  for (const [name, run] of Object.entries(SCENARIOS)) {
-    const p = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+  for (const [name, sc] of Object.entries(SCENARIOS)) {
+    // 情境可以是函式，或 { run, page: 開分頁的選項（例如手機尺寸）, init: 頁面程式執行前先跑（例如放入舊設定） }
+    const { run, page = {}, init } = typeof sc === 'function' ? { run: sc } : sc;
+    const p = await browser.newPage({ viewport: { width: 1000, height: 700 }, ...page });
+    if (init) await p.addInitScript(init);
     p.on('pageerror', e => errors.push(`${name}: ${e.message}`));
     try {
       await p.goto(PAGE, { waitUntil: 'load', timeout: 60000 });

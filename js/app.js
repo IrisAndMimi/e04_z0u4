@@ -98,9 +98,9 @@ function readingToKeys(reading,L){
 }
 
 /* ---------- 狀態 ---------- */
-const S={layout:'daqian',mode:'dec',opts:{reorder:true,smart:true,numUnit:true,endTone1:false,shapeSplit:false},
+const S={layout:'daqian',mode:'dec',opts:{reorder:true,smart:true,numUnit:false,endTone1:false,shapeSplit:false},
   locks:{},sel:null,prev:[],glocks:{},gcodes:{},gsel:null,target:'zh',lastDoneCount:0,auto:true,detect:'idle',genPick:null,cands:null,candsFor:'',pin:null};
-try{const sv=JSON.parse(localStorage.getItem('zyw-settings')||'null'); if(sv){ if(LAYOUTS[sv.layout]) S.layout=sv.layout; if(sv.target==='sym') S.target='sym'; if(sv.auto===false) S.auto=false; const so=Object.assign({},sv.opts); delete so.keepDigits; delete so.autoIme; Object.assign(S.opts,so); }}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem('zyw-settings')||'null'); if(sv){ if(LAYOUTS[sv.layout]) S.layout=sv.layout; if(sv.target==='sym') S.target='sym'; if(sv.auto===false) S.auto=false; Object.assign(S.opts,sv.opts); }}catch(e){}
 function save(){try{localStorage.setItem('zyw-settings',JSON.stringify({v:3,layout:S.layout,opts:S.opts,target:S.target,auto:S.auto}));}catch(e){}}
 const cur=()=>LAYOUTS[S.layout];
 // demo：左邊內容是否還是「開場範例」。一旦按過 ⇄、自己打過字、用預測補完過、或已經點進去過，就不再是範例，不會被清空。
@@ -145,7 +145,7 @@ function tokenizeZy(text,L,o){
     }
     return {t:'syl',keys,id,reading,sig:'z'+id,z:showReading(reading),start:part[0].pos};
   }
-  // 「沒打聲調時當一聲」：把一串符號拆成好幾個音節，前面的都當一聲，最後一個用實際按的聲調。
+  // 「漏打聲調也能辨識」：把一串符號拆成好幾個音節，前面的都當一聲，最後一個用實際按的聲調。
   // 例：e0su3 → ㄍㄢ（一聲）+ ㄋㄧˇ。拆法取音節最少者，同數量時偏好符號本來就照順序打的拆法。
   function split(tone,toneKey,tonePos){
     const n=buf.length,best=new Array(n+1).fill(null);best[0]={c:0,p:0};
@@ -401,7 +401,7 @@ function runDecode(){
   const symOut=S.target==='sym';let txt='',prevSyl=false;
   for(const t of TOKS){
     if(t.t==='raw'){txt+=t.s;prevSyl=false;}
-    // 被「沒打聲調時當一聲」補上一聲的字，在注音結果多加 ˉ，看得出有補
+    // 被「漏打聲調也能辨識」補上一聲的字，在注音結果多加 ˉ，看得出有補
     else if(t.t==='syl'){txt+=symOut?(prevSyl?' ':'')+t.z+(t.assumed?'ˉ':''):t.ch;prevSyl=true;}
     else txt+=symOut?(prevSyl?' ':'')+(L.type==='zy'?t.syms.join(''):roots(L,t.code)):t.keys;
   }
@@ -449,7 +449,7 @@ function missedTones(toks,L){
   const cjkNext=t=>t&&t.t==='raw'&&/^[\u3000-\u9fff\uff00-\uffef]/.test(t.s);
   return toks.filter((t,i)=>{ if(!t.assumed) return false; let j=i+1; while(toks[j]&&toks[j].assumed) j++; return realTone(toks[j])||cjkNext(toks[j]); });
 }
-// 「沒打聲調時當一聲」沒開，但內容看起來像漏打聲調時，主動提示
+// 「漏打聲調也能辨識」沒開，但內容看起來像漏打聲調時，主動提示
 function renderToneHint(L){
   const box=$('toneHint');
   if(L.type!=='zy'||S.opts.endTone1||!TOKS.some(t=>t.t==='raw')){box.hidden=true;return;}
@@ -530,11 +530,12 @@ function renderCands(sylToks){
   candPanel.hidden=false;
   candPanel.innerHTML=`<div class="panel-h">第 ${S.sel+1} 個字 ${what} 的候選字${S.locks[S.sel]?'（已鎖定）':''}：</div><div class="cands">`+
     candList(t).map(c=>`<button type="button" class="cand" data-ch="${esc(c)}" aria-current="${c===t.ch}">${esc(c)}</button>`).join('')+
-    `</div><div><button type="button" class="btn" id="unlock">${S.locks[S.sel]?'取消鎖定':'關閉'}</button></div>`;
+    `</div><div class="panel-acts">${S.locks[S.sel]?'<button type="button" class="btn" id="unlock">取消鎖定</button>':''}<button type="button" class="btn" id="closeCand">關閉</button></div>`;
 }
 chips.addEventListener('click',e=>{const b=e.target.closest('.chip[data-idx]'); if(!b) return; const i=+b.dataset.idx; S.sel=S.sel===i?null:i; runDecode();});
 candPanel.addEventListener('click',e=>{
-  if(e.target.id==='unlock'){ if(S.locks[S.sel]) delete S.locks[S.sel]; else S.sel=null; runDecode(); return; }
+  if(e.target.id==='unlock'){ delete S.locks[S.sel]; runDecode(); return; }
+  if(e.target.id==='closeCand'){ S.sel=null; runDecode(); return; }
   const b=e.target.closest('.cand'); if(!b) return;
   const t=TOKS.filter(x=>x.t==='syl')[S.sel];
   S.locks[S.sel]={sig:t.sig,ch:b.dataset.ch}; runDecode();
@@ -581,24 +582,34 @@ function runGen(){
     const rs=REV.ch.get(selIt.ch);
     gCandPanel.hidden=false;
     gCandPanel.innerHTML=`<div class="panel-h">「${esc(selIt.ch)}」的讀音：</div><div class="cands">`+rs.map(r=>`<button type="button" class="cand" data-rid="${r.id}" aria-current="${r.id===selIt.id}">${esc(showReading(SYL[r.id]))}</button>`).join('')+
-      `</div><div><button type="button" class="btn" id="gunlock">${S.glocks[selIt.pos]!==undefined?'取消鎖定':'關閉'}</button></div>`;
+      `</div>`+genActs(S.glocks[selIt.pos]!==undefined);
   }else{
     gCandPanel.hidden=false;
     gCandPanel.innerHTML=`<div class="panel-h">「${esc(selIt.ch)}」的字碼：</div><div class="cands">`+selIt.alts.map(a=>`<button type="button" class="cand" data-code="${esc(a.code)}" aria-current="${a.code===selIt.e.code}">${keysHTML(shapeEnc(L,a))}<small>${esc(roots(L,a.code))}</small></button>`).join('')+
-      `</div><div><button type="button" class="btn" id="gunlock">${S.gcodes[selIt.pos]?'取消鎖定':'關閉'}</button></div>`;
+      `</div>`+genActs(!!S.gcodes[selIt.pos]);
   }
   const last=GITEMS.filter(x=>x.t==='ch').pop(),hl=selIt||last;
   highlightKeys(hl?(L.type==='zy'?readingToKeys(SYL[hl.id],L):shapeEnc(L,hl.e)):'');
 }
+function genActs(locked){ return `<div class="panel-acts">${locked?'<button type="button" class="btn" id="gunlock">取消鎖定</button>':''}<button type="button" class="btn" id="gclose">關閉</button></div>`; }
 gchips.addEventListener('click',e=>{const b=e.target.closest('.chip[data-pos]'); if(!b) return; const p=+b.dataset.pos; S.gsel=S.gsel===p?null:p; runGen();});
 gCandPanel.addEventListener('click',e=>{
   const zy=cur().type==='zy';
-  if(e.target.id==='gunlock'){ const m=zy?S.glocks:S.gcodes; if(m[S.gsel]!==undefined) delete m[S.gsel]; else S.gsel=null; runGen(); return; }
+  if(e.target.id==='gunlock'){ delete (zy?S.glocks:S.gcodes)[S.gsel]; runGen(); return; }
+  if(e.target.id==='gclose'){ S.gsel=null; runGen(); return; }
   const b=e.target.closest('.cand'); if(!b) return;
   if(zy) S.glocks[S.gsel]=+b.dataset.rid; else S.gcodes[S.gsel]=b.dataset.code;
   runGen();
 });
 $('copyG').addEventListener('click',()=>copy(gout.dataset.text||''));
+// 候選字面板：點到（或用 Tab 移到）面板和組字區以外的地方、或按 Esc，就收起來
+function closeCandPanels(target){
+  if(!candPanel.hidden&&!(target&&(candPanel.contains(target)||chips.contains(target)))){S.sel=null;runDecode();}
+  if(!gCandPanel.hidden&&!(target&&(gCandPanel.contains(target)||gchips.contains(target)))){S.gsel=null;runGen();}
+}
+document.addEventListener('pointerdown',e=>closeCandPanels(e.target));
+document.addEventListener('focusin',e=>closeCandPanels(e.target));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeCandPanels(null); });
 // 「按鍵」＝第一個位置（對應另一邊的「中文」），「注音／字根」＝第二個位置；⇄ 前後停在同一個位置
 $('gtargets').addEventListener('click',e=>{const b=e.target.closest('[data-gtarget]'); if(!b) return; S.target=b.dataset.gtarget==='sym'?'sym':'zh'; save(); setLangs(); runGen();});
 
@@ -810,6 +821,50 @@ function markSrcBox(shake){
 gsrc.addEventListener('input',()=>{S.glocks={};S.gcodes={};S.gsel=null;runGen();scheduleDetect();});
 const optMap={optReorder:'reorder',optSmart:'smart',optDigits:'numUnit',optEnd:'endTone1',optSplit:'shapeSplit'};
 for(const [id,key] of Object.entries(optMap)){const el=$(id); el.checked=!!S.opts[key]; el.addEventListener('change',()=>{S.opts[key]=el.checked;save();runDecode();});}
+
+/* ---------- 說明：看實際用的是什麼輸入 ---------- */
+// 滑鼠、觸控板滑過「?」→ 一般提示框；手指或觸控筆點「?」→ 燈箱；鍵盤 Tab 到「?」→ 一般提示框
+// 不用 @media (hover / pointer) 判斷裝置：有觸控螢幕的筆電，Chrome 會回報「沒有滑鼠」，電腦也會變成燈箱
+const helpWrap=$('helpBtn').parentElement;
+let helpPointer='mouse';   // 最近一次按下「?」用的是什麼（mouse／touch／pen）
+let helpClosing=0,helpEnd=null;   // 燈箱淡出中：保險計時器、淡出結束的監聽
+function stopClosing(){
+  clearTimeout(helpClosing); if(helpEnd) $('tip').removeEventListener('transitionend',helpEnd);
+  helpEnd=null; helpWrap.classList.remove('closing');
+}
+function setHelp(open){
+  stopClosing();
+  if(open){
+    helpWrap.classList.remove('hovering','kbd');
+    helpWrap.classList.add('open'); document.documentElement.classList.add('tip-open');
+  }else if(helpWrap.classList.contains('open')){
+    // 先在原位淡出，等完全透明了才拿掉 .open；直接拿掉的話，說明框會一邊淡出一邊飛回「?」下面，看起來像彈跳
+    const done=()=>{ stopClosing(); helpWrap.classList.remove('open'); document.documentElement.classList.remove('tip-open'); placeTip(); };
+    helpWrap.classList.add('closing');
+    helpEnd=e=>{ if(e.target===$('tip')&&e.propertyName==='opacity') done(); };
+    $('tip').addEventListener('transitionend',helpEnd);
+    helpClosing=setTimeout(done,300);   // 保險：手機設成「減少動態效果」時沒有淡出動畫，不會有 transitionend
+  }
+}
+helpWrap.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse'&&!helpWrap.classList.contains('open')) helpWrap.classList.add('hovering'); });
+helpWrap.addEventListener('pointerleave',e=>{ if(e.pointerType==='mouse') helpWrap.classList.remove('hovering'); });
+$('helpBtn').addEventListener('pointerdown',e=>{ helpPointer=e.pointerType; });
+$('helpBtn').addEventListener('click',()=>{ if(helpPointer!=='mouse') setHelp(!helpWrap.classList.contains('open')); helpPointer='mouse'; });
+$('helpBtn').addEventListener('focus',()=>{ if($('helpBtn').matches(':focus-visible')) helpWrap.classList.add('kbd'); });
+$('helpBtn').addEventListener('blur',()=>helpWrap.classList.remove('kbd'));
+$('tipBackdrop').addEventListener('click',()=>setHelp(false));
+$('tipClose').addEventListener('click',()=>setHelp(false));
+// Esc：燈箱關掉；一般提示框（鍵盤 Tab 或滑鼠叫出來的）也收起，下次滑過或 Tab 到「?」再出現
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ setHelp(false); helpWrap.classList.remove('hovering','kbd'); } });
+// 一般提示框：視窗窄的時候往左移，不超出視窗右邊（藏起來時也算在頁寬裡，所以載入、縮放視窗、字型載入後都要算）
+function placeTip(){
+  const tip=$('tip'); tip.style.marginLeft='';
+  if(helpWrap.classList.contains('open')) return;
+  const r=tip.getBoundingClientRect(),over=r.right-(document.documentElement.clientWidth-16);
+  if(over>0) tip.style.marginLeft=-Math.min(over,Math.max(0,r.left-16))+'px';
+}
+placeTip(); addEventListener('resize',placeTip);
+if(document.fonts) document.fonts.ready.then(placeTip);   // 字型載入後標題寬度會變，「?」的位置跟著變
 
 /* ---------- 開場範例 ---------- */
 const SAMPLE_ZH='幹我又忘記切換輸入法了';
