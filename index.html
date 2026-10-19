@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-Hant-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!--
+  e04 注音文翻譯器
+  程式碼授權：PolyForm Noncommercial License 1.0.0（只限非商業使用）
+    https://polyformproject.org/licenses/noncommercial/1.0.0
+  使用的資料另有授權：新酷音詞庫 LGPL-2.1-or-later；無蝦米字碼表 © 行易有限公司，限非商業使用；
+  倉頡字碼表取自 cin-tables（CC0 1.0）。詳見專案裡的 THIRD_PARTY_NOTICES.md。
+-->
+<title>e04 注音文翻譯器</title>
+<meta name="description" content="把 e04、jjomj 這類忘了切輸入法打出來的字，依大千、倚天、倉頡、無蝦米翻回中文，也能反向產生。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+
+</head><body style="margin:0">
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="caps" aria-hidden="true">
+        <span class="cap"><b>E</b><i>ㄍ</i></span>
+        <span class="cap"><b>0</b><i>ㄢ</i></span>
+        <span class="cap"><b>4</b><i>ˋ</i></span>
+        <span class="arrow">→</span>
+        <span class="cap res"><i>幹</i></span>
+      </div>
+      <h1>注音文翻譯器
+        <span class="help">
+          <button type="button" id="helpBtn" aria-label="使用說明與限制" aria-describedby="tip">?</button>
+          <div class="tip" id="tip" role="tooltip">
+            <h3>怎麼用</h3>
+            <ul>
+              <li>左邊貼上注音文（例如 <code>e04</code>、<code>su3cl3</code>），右邊即時翻成中文。</li>
+              <li>每個字要用<strong>聲調鍵</strong>收尾：大千 <code>空白</code>=一聲、<code>6</code>=ˊ、<code>3</code>=ˇ、<code>4</code>=ˋ、<code>7</code>=˙；倚天 <code>空白</code>=一聲、<code>2 3 4</code>、<code>1</code>=˙。</li>
+              <li>組字區點任何一個字可改選候選字（右上小紅點＝已鎖定）。紅色底線連起來的是詞組。</li>
+              <li>按中間的 ⇄ 交換方向，改成中文轉鍵盤碼，右上選輸入法，旁邊可切換看「按鍵」或「注音／字根」；破音字或多組字碼點一下可切換。</li>
+              <li>點左上的輸入法名稱（▾）切換：注音（大千、倚天）、字形（倉頡、無蝦米）、符號（直接貼的注音符號、字根）。切換時左邊的內容會自動改寫成新輸入法的按法。</li>
+              <li>輸入法選單最上面的「自動偵測」（預設）：跟 Google 翻譯的偵測語言一樣。停手一下後會用每一種輸入法各試翻一次，挑翻得最通順的切過去，標籤顯示「偵測到」；認不出來時顯示「無法辨識」，輸入框會變紅框並晃一下。貼上的是中文時，兩邊會自動對調成「中文 → 注音文」，預設轉成大千；反過來在中文那邊貼上注音文、倉頡碼等，也會自動對調回來。也認得直接貼上的注音符號（ㄍㄢˋ ㄋㄧˇ、˙ㄌㄜ 或 ㄌㄜ˙ 都可以）和字根（倉頡 十十人一十、無蝦米 ＪＧ），選單「符號」那組也能手動選。只打一個字時常常好幾種輸入法都翻得通（例如 jg 在無蝦米是「幹」、在大千是「書」），這時照使用人數（大千 > 倚天 > 倉頡 > 無蝦米）挑一個當主結果，其他的在下方「也可能是」，點了就換過去。從選單選了特定輸入法就不再自動偵測；左邊清空後會自動回到「自動偵測」。</li>
+              <li>右邊可選翻成「中文」，或翻成「注音」／「字根」（倉頡是日月金木水火土那些，也就是鍵盤上印的字）。</li>
+            </ul>
+            <h3>什麼時候出字</h3>
+            <ul>
+              <li>跟新酷音、微軟注音一樣：打到聲調鍵才確定一個音節並出字。</li>
+              <li>每確定一個字，整句會用詞庫重算一次（智慧選字），前面的字可能被改掉，被改的字會閃一下。</li>
+              <li>還沒打聲調的部分停在組字區，下方列出可能的字，點一下直接補完。</li>
+            </ul>
+            <h3>自動校正注音順序</h3>
+            <ul>
+              <li>輸入法會把符號放進聲母／介音／韻母三個位置，所以打 <code>ij3</code>（ㄛㄨˇ）也會變成ㄨㄛˇ「我」。開啟時本工具照做。</li>
+              <li>同一個位置出現兩個符號（例如兩個聲母）就不當成注音，原樣保留。</li>
+            </ul>
+            <h3>倉頡、無蝦米</h3>
+            <ul>
+              <li>每個字碼後面接<code>空白</code>送出第一個字，接數字 <code>1</code>～<code>9</code> 選第幾個（跟輸入法選字一樣）。例如倉頡 <code>jjomj␣</code>、無蝦米 <code>jg␣</code> 都是「幹」。</li>
+              <li>字碼打一半還沒送出時，組字區會列出以它開頭的字，點一下補完。</li>
+              <li>連打沒空白（像 <code>onfjjomj</code>）預設不拆，可勾「連打沒空白也斷字」，會用最少字數去拆，但可能拆錯。</li>
+              <li>倉頡用相容微軟倉頡（第三代）的字碼表；無蝦米字碼表版權屬行易有限公司，授權為非商業使用，這個工具只供個人免費使用。</li>
+            </ul>
+            <h3>限制</h3>
+            <ul>
+              <li>目前支援大千、倚天、倉頡、無蝦米；許氏、IBM、倚天 26 鍵、速成、大易、行列還沒做。</li>
+              <li>大千的 <code>, . / ; -</code> 和 <code>1 2 5 8 9 0</code> 本身就是注音鍵，夾在注音文裡的半形標點、數字可能被當成注音。建議標點用全形。</li>
+              <li>「單位詞之前，純數字不轉換」（預設開）：一串數字如果後面接單位（元、個、次、%、kg…）、前面是 $、第、約、共、剩，或比一個字的長度還長（像 1040），就當成數字原樣保留；其他照注音翻，例如單獨的 104 還是會變成ㄅㄢˋ。</li>
+              <li>「沒打聲調時當一聲」：漏打聲調時，前面那幾個符號會被拆出來當一聲，例如 <code>e0su3</code> 會變成ㄍㄢ＋ㄋㄧˇ；標點前沒打聲調的也一樣。最後一個還沒打聲調的字會先留在組字區，開始打下一個字時才補一聲。被補一聲的字在組字區是紅色虛線框，翻成注音時會多一個 ˉ（例如 ㄍㄢˉ）。開啟後英文單字也更容易被拆成注音，平常建議關著。</li>
+              <li>英文單字剛好拼成合法注音加聲調時會被翻掉。</li>
+              <li>注音選字是詞頻統計結果，不一定是原意，歧義時請點字手動改。字形輸入法的同碼字依字碼表順序。</li>
+              <li>詞庫取自新酷音 libchewing-data（LGPL-2.1），已省略極罕用詞組；倉頡、無蝦米字碼表取自 cin-tables。全部在瀏覽器內運算，不上傳任何文字。</li>
+            </ul>
+          </div>
+        </span>
+      </h1>
+    </div>
+  </header>
+
+  <div class="langbar">
+    <div class="lside" id="langL">
+      <div class="ime" id="ime">
+        <button type="button" class="lbtn on" id="imeBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="imeMenu"><span id="imeLbl"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="ime-menu" id="imeMenu" role="listbox" aria-label="輸入法">
+          <span class="ime-hl" aria-hidden="true"></span>
+          <button type="button" role="option" data-layout="auto" id="optAutoIme"><span>自動偵測</span></button>
+          <div class="ime-grp">注音</div>
+          <button type="button" role="option" data-layout="daqian"><span>大千</span><span class="ex">e04 → 幹</span></button>
+          <button type="button" role="option" data-layout="eten"><span>倚天</span><span class="ex">v84 → 幹</span></button>
+          <div class="ime-grp">字形</div>
+          <button type="button" role="option" data-layout="cangjie"><span>倉頡</span><span class="ex">jjomj → 幹</span></button>
+          <button type="button" role="option" data-layout="boshiamy"><span>無蝦米</span><span class="ex">jg → 幹</span></button>
+          <div class="ime-grp" data-pseudo>符號</div>
+          <button type="button" role="option" data-layout="zysym" data-pseudo><span>注音符號</span><span class="ex">ㄍㄢˋ → 幹</span></button>
+          <button type="button" role="option" data-layout="cjroot" data-pseudo><span>倉頡字根</span><span class="ex">十十人一十 → 幹</span></button>
+          <button type="button" role="option" data-layout="bsroot" data-pseudo><span>無蝦米字根</span><span class="ex">ＪＧ → 幹</span></button>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="swap" id="swap" aria-label="交換翻譯方向" title="交換翻譯方向"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h15M15 4l4 4-4 4"/><path d="M20 16H5M9 12l-4 4 4 4"/></svg></button>
+    <div class="lside" id="langR">
+      <div role="tablist" aria-label="翻譯成" id="targets" style="display:flex;gap:2px">
+        <button type="button" role="tab" class="lbtn" data-target="zh">中文</button>
+        <button type="button" role="tab" class="lbtn" data-target="sym" id="tgtSym">注音</button>
+      </div>
+      <span class="lbtn static on" id="zhStatic" hidden>中文</span>
+      <div role="tablist" aria-label="轉成" id="gtargets" style="display:flex;gap:2px" hidden>
+        <button type="button" role="tab" class="lbtn" data-gtarget="keys">按鍵</button>
+        <button type="button" role="tab" class="lbtn" data-gtarget="sym" id="gtgtSym">注音</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="panDec" style="display:flex;flex-direction:column;gap:16px">
+    <div class="io">
+      <div class="box">
+        <div class="box-h"><span></span><div class="acts"><button class="btn" type="button" id="clearSrc">清空</button></div></div>
+        <textarea id="src" aria-label="注音文" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="請在這裡貼上"></textarea>
+      </div>
+      <div class="box">
+        <div class="box-h"><span></span><div class="acts"><button class="btn" type="button" id="copyOut">複製</button></div></div>
+        <div class="out" id="out" aria-live="polite"><span class="loading">載入詞庫中…</span></div>
+        <div class="alts" id="alts" hidden></div>
+      </div>
+    </div>
+
+    <div class="comp">
+      <div class="comp-h"><span id="compLbl">組字區 · 按鍵 / 注音 / 選字</span><span id="stat"></span></div>
+      <div class="chips" id="chips"></div>
+      <div class="panel" id="predPanel" hidden></div>
+      <div class="panel" id="toneHint" hidden></div>
+      <div class="panel" id="candPanel" hidden></div>
+      <div class="opts" role="group" aria-label="翻譯設定">
+        <label data-for="zy"><input type="checkbox" id="optReorder" checked> 自動校正注音順序（ㄛㄨ → ㄨㄛ）</label>
+        <label data-for="zy"><input type="checkbox" id="optSmart" checked> 智慧選字（依詞組）</label>
+        <label data-for="zy"><input type="checkbox" id="optDigits" checked> 單位詞之前，純數字不轉換</label>
+        <label data-for="zy"><input type="checkbox" id="optEnd"> 沒打聲調時當一聲</label>
+        <label data-for="shape"><input type="checkbox" id="optSplit"> 連打沒空白也斷字</label>
+      </div>
+    </div>
+  </section>
+
+  <section id="panGen" hidden style="flex-direction:column;gap:16px">
+    <div class="io">
+      <div class="box">
+        <div class="box-h"><span></span><div class="acts"><button class="btn" type="button" id="clearG">清空</button></div></div>
+        <textarea id="gsrc" aria-label="中文" class="han" spellcheck="false" placeholder="請在這裡貼上"></textarea>
+      </div>
+      <div class="box">
+        <div class="box-h"><span></span><div class="acts"><button class="btn" type="button" id="copyG">複製</button></div></div>
+        <div class="out keys" id="gout" aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="comp">
+      <div class="comp-h"><span id="gcompLbl">逐字對照 · 點字可換讀音</span><span id="gstat"></span></div>
+      <div class="chips" id="gchips"></div>
+      <div class="panel" id="gCandPanel" hidden></div>
+    </div>
+  </section>
+
+  <div class="kb-wrap">
+    <div class="comp-h"><span id="kbTitle">大千鍵盤對照</span><span class="legend-row"><span class="l1" id="lg1">注音符號</span><span class="l2" id="lg2">聲調</span><span class="l3">目前這個字用到的鍵</span></span></div>
+    <div class="kb-scroll"><div class="kb" id="kb"></div></div>
+  </div>
+
+  <footer>詞庫：<a href="https://github.com/chewing/libchewing-data" target="_blank" rel="noopener">新酷音 libchewing-data</a>（LGPL-2.1）；倉頡、無蝦米字碼表：<a href="https://github.com/chinese-opendesktop/cin-tables" target="_blank" rel="noopener">cin-tables</a>（無蝦米字碼表 © 行易有限公司，限非商業使用）。全部在瀏覽器內運算。</footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="data/dict.js"></script>
+<script src="data/shape.js"></script>
+<script src="js/app.js"></script>
+
+</body></html>
